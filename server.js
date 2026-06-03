@@ -407,11 +407,13 @@ app.all('*any', async (req, res) => {
             return res.json({ success: true });
         }
 
+        // 1. LEADÁS: Itt állítjuk 'ellenorzes_alatt' állapotra a 'szabad' helyett!
         if (path === '/api/vehicles/return' && method === 'POST') {
             const { vehicleId, proof } = req.body;
+            if (!user) return res.status(401).json({ error: 'Nincs bejelentkezve!' });
 
-            // Frissítjük a járművet szabadra
-            await supabase.from('jarmuvek').update({ allapot: 'szabad', hasznalo_id: null, hasznalo_nev: null }).eq('id', vehicleId);
+            // 'szabad' helyett 'ellenorzes_alatt'-ra állítjuk! A tagról viszont levesszük.
+            await supabase.from('jarmuvek').update({ allapot: 'ellenorzes_alatt', hasznalo_id: null, hasznalo_nev: null }).eq('id', vehicleId);
 
             // Log frissítése a leadási bizonyítékkal
             const { data: logs } = await supabase.from('jarmu_log')
@@ -422,6 +424,30 @@ app.all('*any', async (req, res) => {
             }
             return res.json({ success: true });
         }
+
+        // 2. JELENTÉS (Változatlan marad)
+        if (path === '/api/vehicles/report' && method === 'POST') {
+            const { vehicleId, proof } = req.body;
+            if (!user) return res.status(401).json({ error: 'Nincs bejelentkezve!' });
+
+            const { data: lastLog } = await supabase.from('jarmu_log')
+                .select('*').eq('jarmu_id', vehicleId)
+                .not('leadas_ideje', 'is', null)
+                .order('leadas_ideje', { ascending: false }).limit(1);
+
+            if (!lastLog || lastLog.length === 0) {
+                return res.status(400).json({ error: 'Nincs előző használó a rendszerben ennél a járműnél!' });
+            }
+
+            const prevLog = lastLog[0];
+            const ujBizonyitek = prevLog.bizonyitek + ` | [JELENTVE: ${proof}]`;
+            
+            await supabase.from('jarmu_log')
+                .update({ ellenorizve: false, bizonyitek: ujBizonyitek })
+                .eq('id', prevLog.id);
+
+            return res.json({ success: true });
+        }
         
         // ADMIN VÉGPONTOK
         if (path === '/api/vehicles/admin' && method === 'GET') {
@@ -430,6 +456,7 @@ app.all('*any', async (req, res) => {
             return res.json(data || []);
         }
 
+        // 3. BÜNTETÉS: Itt is felszabadítjuk a járművet a büntetés kiosztása után
         if (path === '/api/vehicles/punish' && method === 'POST') {
             if (!user.jog_jarmu && user.rang !== 'DEV') return res.status(403).json({ error: 'Nincs jogod!' });
             const { userId, logId, duration } = req.body;
@@ -440,19 +467,39 @@ app.all('*any', async (req, res) => {
             else if (duration === '30') banUntil.setDate(banUntil.getDate() + 30);
             else if (duration === 'forever') banUntil.setFullYear(banUntil.getFullYear() + 100);
 
-            // Eltiltás kiosztása a tagnak
+            // Eltiltás kiosztása a tagnak és log lezárása
             await supabase.from('tagok').update({ jarmu_eltiltas: banUntil.toISOString() }).eq('id', userId);
-            
-            // Log lezárása
             await supabase.from('jarmu_log').update({ ellenorizve: true }).eq('id', logId);
+
+            // ÚJ: Jármű felszabadítása az ellenőrzés alól
+            const { data: logData } = await supabase.from('jarmu_log').select('jarmu_id').eq('id', logId).single();
+            if (logData && logData.jarmu_id) {
+                const { data: vData } = await supabase.from('jarmuvek').select('allapot').eq('id', logData.jarmu_id).single();
+                if (vData && vData.allapot === 'ellenorzes_alatt') {
+                    await supabase.from('jarmuvek').update({ allapot: 'szabad' }).eq('id', logData.jarmu_id);
+                }
+            }
+
             return res.json({ success: true });
         }
         
+        // 4. JÓVÁHAGYÁS: Itt válik teljesen szabaddá a jármű, ha minden rendben volt
         if (path === '/api/vehicles/approve' && method === 'POST') {
             if (!user.jog_jarmu && user.rang !== 'DEV') return res.status(403).json({ error: 'Nincs jogod!' });
             const { logId } = req.body;
-            // Ha rendben volt a letétel, csak elrejtjük az admin panelről
+            
+            // Log lezárása
             await supabase.from('jarmu_log').update({ ellenorizve: true }).eq('id', logId);
+
+            // ÚJ: Jármű felszabadítása az ellenőrzés alól
+            const { data: logData } = await supabase.from('jarmu_log').select('jarmu_id').eq('id', logId).single();
+            if (logData && logData.jarmu_id) {
+                const { data: vData } = await supabase.from('jarmuvek').select('allapot').eq('id', logData.jarmu_id).single();
+                if (vData && vData.allapot === 'ellenorzes_alatt') {
+                    await supabase.from('jarmuvek').update({ allapot: 'szabad' }).eq('id', logData.jarmu_id);
+                }
+            }
+
             return res.json({ success: true });
         }
 
