@@ -421,6 +421,7 @@ app.all('*any', async (req, res) => {
         if (path === '/api/vehicles/request' && method === 'POST') {
             const { vehicleId } = req.body;
             if (!user) return res.status(401).json({ error: 'Nincs bejelentkezve vagy lejárt a munkamenet!' });
+            
             const { data: userData } = await supabase.from('tagok').select('jarmu_eltiltas').eq('id', user.id).single();
             if (userData && userData.jarmu_eltiltas) {
                 const banDate = new Date(userData.jarmu_eltiltas);
@@ -428,11 +429,35 @@ app.all('*any', async (req, res) => {
                     return res.status(403).json({ error: `El vagy tiltva a járművek használatától eddig: ${banDate.toLocaleString()}` });
                 }
             }
+            
             const { data: vehicle } = await supabase.from('jarmuvek').select('*').eq('id', vehicleId).single();
             if (!vehicle || vehicle.allapot !== 'szabad') {
                 return res.status(400).json({ error: 'Ez a jármű jelenleg nem szabad!' });
             }
             await supabase.from('jarmuvek').update({ allapot: 'igenyles_alatt', hasznalo_id: user.id, hasznalo_nev: user.ic_nev || user.nev }).eq('id', vehicleId);
+            const DISCORD_JARMU_WEBHOOK_URL = 'https://discord.com/api/webhooks/1512408216951193643/IX1u11XEkAOqCKlkze5gi9hjc3VliCw63IrrwA_9zPatZWBnHuc5EUYEbM-wDpIKE7-Y';
+            try {
+                const discordMessage = {
+                    content: "**Új Jármű Igénylés!**",
+                    embeds: [{ 
+                        title: `${vehicle.tipus} (${vehicle.rendszam})`, 
+                        description: `**Igénylő:** ${user.ic_nev || user.nev}\n**Alvázszám:** ${vehicle.alvazszam || '-'}`, 
+                        color: 10181046,
+                        timestamp: new Date().toISOString() 
+                    }]
+                };
+                
+                const response = await fetch(DISCORD_JARMU_WEBHOOK_URL, { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify(discordMessage) 
+                });
+                
+                if (!response.ok) console.error("DISCORD JÁRMŰ IGÉNYLÉS HIBA:", response.status, await response.text());
+            } catch (err) { 
+                console.error("Discord hiba:", err); 
+            }
+
             return res.json({ success: true });
         }
         if (path === '/api/vehicles/request_approve' && method === 'POST') {
