@@ -187,7 +187,8 @@ app.all('*any', async (req, res) => {
                     bekuldo_id: user.id, bekuldo_nev: user.ic_nev || user.nev, 
                     cim: req.body.cim, tartalom: req.body.tartalom, statusz: 'Függőben', kommentek: []
                 }]);
-
+                
+                //DISCORD WEBHOOK
                 const DISCORD_KERVENY_WEBHOOK_URL = 'https://discord.com/api/webhooks/1512408216951193643/IX1u11XEkAOqCKlkze5gi9hjc3VliCw63IrrwA_9zPatZWBnHuc5EUYEbM-wDpIKE7-Y';
                 try {
                     const biztonsagosCim = req.body.cim ? req.body.cim.trim() : "Névtelen kérvény";
@@ -211,16 +212,19 @@ app.all('*any', async (req, res) => {
                         headers: { 'Content-Type': 'application/json' }, 
                         body: JSON.stringify(discordMessage) 
                     });
+
                     if (!response.ok) {
                         const errorText = await response.text();
                         console.error("DISCORD WEBHOOK HIBA:", response.status, errorText);
                     } else {
-                        console.log("Discord kérvény sikeresen elküldve!");
+                        console.log("Discord kérvény értesítő sikeresen elküldve!");
                     }
 
                 } catch (err) {
                     console.error("Fetch hiba a Discord csatlakozáskor:", err);
                 }
+                
+                return res.json({ success: true });
             }
         }
         if (path.startsWith('/api/kervenyek/')) {
