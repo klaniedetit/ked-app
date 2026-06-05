@@ -179,17 +179,18 @@ app.all('*any', async (req, res) => {
                 return res.json(data || []);
             }
             if (method === 'POST') {
-                console.log("KÉRVÉNY BEKÜLDÉS ÉRZÉKELVE");
                 const { data: activeList } = await supabase.from('kervenyek').select('id').eq('bekuldo_id', user.id).eq('statusz', 'Függőben');
                 if (activeList && activeList.length > 0) {
                     return res.status(400).json({ error: 'Már van egy elbírálásra váró kérvényed! Várj türelemmel.' });
                 }
+                
+                // 1. Mentés az adatbázisba
                 await supabase.from('kervenyek').insert([{ 
                     bekuldo_id: user.id, bekuldo_nev: user.ic_nev || user.nev, 
                     cim: req.body.cim, tartalom: req.body.tartalom, statusz: 'Függőben', kommentek: []
                 }]);
                 
-                //DISCORD WEBHOOK
+                // 2. Értesítés a Discordra
                 const DISCORD_KERVENY_WEBHOOK_URL = 'https://discord.com/api/webhooks/1512408216951193643/IX1u11XEkAOqCKlkze5gi9hjc3VliCw63IrrwA_9zPatZWBnHuc5EUYEbM-wDpIKE7-Y';
                 try {
                     const biztonsagosCim = req.body.cim ? req.body.cim.trim() : "Névtelen kérvény";
@@ -208,21 +209,13 @@ app.all('*any', async (req, res) => {
                         }]
                     };
                     
-                    const response = await fetch(DISCORD_KERVENY_WEBHOOK_URL, { 
+                    await fetch(DISCORD_KERVENY_WEBHOOK_URL, { 
                         method: 'POST', 
                         headers: { 'Content-Type': 'application/json' }, 
                         body: JSON.stringify(discordMessage) 
                     });
-
-                    if (!response.ok) {
-                        const errorText = await response.text();
-                        console.error("DISCORD WEBHOOK HIBA:", response.status, errorText);
-                    } else {
-                        console.log("Discord kérvény értesítő sikeresen elküldve!");
-                    }
-
                 } catch (err) {
-                    console.error("Fetch hiba a Discord csatlakozáskor:", err);
+                    console.error("Discord hiba:", err);
                 }
                 
                 return res.json({ success: true });
