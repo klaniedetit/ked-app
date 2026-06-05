@@ -179,6 +179,7 @@ app.all('*any', async (req, res) => {
                 return res.json(data || []);
             }
             if (method === 'POST') {
+                console.log("KÉRVÉNY BEKÜLDÉS ÉRZÉKELVE");
                 const { data: activeList } = await supabase.from('kervenyek').select('id').eq('bekuldo_id', user.id).eq('statusz', 'Függőben');
                 if (activeList && activeList.length > 0) {
                     return res.status(400).json({ error: 'Már van egy elbírálásra váró kérvényed! Várj türelemmel.' });
