@@ -187,6 +187,21 @@ app.all('*any', async (req, res) => {
                     bekuldo_id: user.id, bekuldo_nev: user.ic_nev || user.nev, 
                     cim: req.body.cim, tartalom: req.body.tartalom, statusz: 'Függőben', kommentek: []
                 }]);
+
+                const DISCORD_KERVENY_WEBHOOK_URL = 'https://discord.com/api/webhooks/1512408216951193643/IX1u11XEkAOqCKlkze5gi9hjc3VliCw63IrrwA_9zPatZWBnHuc5EUYEbM-wDpIKE7-Y';
+                try {
+                    const discordMessage = {
+                        content: "**Új kérvény!** <@&1422139897082544138> <@&1467951817785610534> <@&1467951910752358583>",
+                        embeds: [{ 
+                            title: req.body.cim, 
+                            description: `**Beküldő:** ${user.ic_nev || user.nev}\n**Tartalom:**\n${req.body.tartalom}`, 
+                            color: 16753920,
+                            timestamp: new Date().toISOString() 
+                        }]
+                    };
+                    await fetch(DISCORD_KERVENY_WEBHOOK_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(discordMessage) });
+                } catch (err) {}
+                
                 return res.json({ success: true });
             }
         }
