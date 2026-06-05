@@ -453,7 +453,7 @@ app.all('*any', async (req, res) => {
             return res.json({ success: true });
         }
 
-        // ==== JÁRMŰ LEADÁSA (ÉRTESÍTÉSSEL) ====
+        //JÁRMŰ LEADÁSA
         if (path === '/api/vehicles/return' && method === 'POST') {
             const { vehicleId, proof } = req.body;
             if (!user) return res.status(401).json({ error: 'Nincs bejelentkezve!' });
@@ -470,11 +470,11 @@ app.all('*any', async (req, res) => {
             try {
                 const { data: vehicle } = await supabase.from('jarmuvek').select('tipus, rendszam').eq('id', vehicleId).single();
                 const discordMessage = {
-                    content: "🚗 **Jármű leadva (Ellenőrzésre vár)**",
+                    content: "**Jármű leadva (Ellenőrzésre vár)**",
                     embeds: [{ 
                         title: vehicle ? `${vehicle.tipus} (${vehicle.rendszam})` : 'Ismeretlen jármű', 
                         description: `**Leadta:** ${user.ic_nev || user.nev}\n**Bizonyíték:**\n${proof}`, 
-                        color: 3447003, // Kék
+                        color: 3447003,
                         timestamp: new Date().toISOString() 
                     }]
                 };
@@ -490,8 +490,6 @@ app.all('*any', async (req, res) => {
 
             return res.json({ success: true });
         }
-
-        // ==== HELYTELEN ÁLLAPOT JELENTÉSE (ÉRTESÍTÉSSEL) ====
         if (path === '/api/vehicles/report' && method === 'POST') {
             const { vehicleId, proof } = req.body;
             if (!user) return res.status(401).json({ error: 'Nincs bejelentkezve!' });
@@ -510,17 +508,15 @@ app.all('*any', async (req, res) => {
             await supabase.from('jarmu_log')
                 .update({ ellenorizve: false, bizonyitek: ujBizonyitek })
                 .eq('id', prevLog.id);
-
-            // Discord értesítés (Pinggel)
             const DISCORD_JARMU_WEBHOOK_URL = 'https://discord.com/api/webhooks/1512408216951193643/IX1u11XEkAOqCKlkze5gi9hjc3VliCw63IrrwA_9zPatZWBnHuc5EUYEbM-wDpIKE7-Y';
             try {
                 const { data: vehicle } = await supabase.from('jarmuvek').select('tipus, rendszam').eq('id', vehicleId).single();
                 const discordMessage = {
-                    content: "⚠️ **Helytelen járműállapot bejelentés!** <@&1491389401606000661>",
+                    content: "**Helytelen járműállapot bejelentés!** <@&1491389401606000661>",
                     embeds: [{ 
                         title: vehicle ? `${vehicle.tipus} (${vehicle.rendszam})` : 'Ismeretlen jármű', 
                         description: `**Bejelentő:** ${user.ic_nev || user.nev}\n**Előző használó (Akit jelentett):** ${prevLog.hasznalo_nev}\n**Jelentés indoka/képe:**\n${proof}`, 
-                        color: 15158332, // Piros
+                        color: 15158332,
                         timestamp: new Date().toISOString() 
                     }]
                 };
