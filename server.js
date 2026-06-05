@@ -190,19 +190,37 @@ app.all('*any', async (req, res) => {
 
                 const DISCORD_KERVENY_WEBHOOK_URL = 'https://discord.com/api/webhooks/1512408216951193643/IX1u11XEkAOqCKlkze5gi9hjc3VliCw63IrrwA_9zPatZWBnHuc5EUYEbM-wDpIKE7-Y';
                 try {
+                    const biztonsagosCim = req.body.cim ? req.body.cim.trim() : "Névtelen kérvény";
+                    let biztonsagosTartalom = req.body.tartalom ? req.body.tartalom.trim() : "Nincs tartalom megadva.";
+                    if (biztonsagosTartalom.length > 4000) {
+                        biztonsagosTartalom = biztonsagosTartalom.substring(0, 4000) + "... [Levágva]";
+                    }
+
                     const discordMessage = {
                         content: "**Új kérvény!** <@&1422139897082544138> <@&1467951817785610534> <@&1467951910752358583>",
                         embeds: [{ 
-                            title: req.body.cim, 
-                            description: `**Beküldő:** ${user.ic_nev || user.nev}\n**Tartalom:**\n${req.body.tartalom}`, 
+                            title: biztonsagosCim, 
+                            description: `**Beküldő:** ${user.ic_nev || user.nev}\n**Tartalom:**\n${biztonsagosTartalom}`, 
                             color: 16753920,
                             timestamp: new Date().toISOString() 
                         }]
                     };
-                    await fetch(DISCORD_KERVENY_WEBHOOK_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(discordMessage) });
-                } catch (err) {}
-                
-                return res.json({ success: true });
+                    
+                    const response = await fetch(DISCORD_KERVENY_WEBHOOK_URL, { 
+                        method: 'POST', 
+                        headers: { 'Content-Type': 'application/json' }, 
+                        body: JSON.stringify(discordMessage) 
+                    });
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        console.error("DISCORD WEBHOOK HIBA:", response.status, errorText);
+                    } else {
+                        console.log("Discord kérvény sikeresen elküldve!");
+                    }
+
+                } catch (err) {
+                    console.error("Fetch hiba a Discord csatlakozáskor:", err);
+                }
             }
         }
         if (path.startsWith('/api/kervenyek/')) {
