@@ -537,7 +537,7 @@ app.all('*any', async (req, res) => {
             try {
                 const { data: vehicle } = await supabase.from('jarmuvek').select('tipus, rendszam').eq('id', vehicleId).single();
                 const discordMessage = {
-                    content: "**Helytelen járműállapot bejelentés!** <@&1491389401606000661>",
+                    content: "**Helytelen járműállapot bejelentés!**",
                     embeds: [{ 
                         title: vehicle ? `${vehicle.tipus} (${vehicle.rendszam})` : 'Ismeretlen jármű', 
                         description: `**Bejelentő:** ${user.ic_nev || user.nev}\n**Előző használó (Akit jelentett):** ${prevLog.hasznalo_nev}\n**Jelentés indoka/képe:**\n${proof}`, 
