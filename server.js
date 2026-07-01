@@ -318,8 +318,9 @@ app.all('*any', async (req, res) => {
         //KASSZA
         if (path === '/api/kassza') {
             if (method === 'GET') { 
-                const { data: a } = await supabase.from('kassza_log').select('osszeg, tipus'); const { data: l } = await supabase.from('kassza_log').select('*').order('datum', { ascending: false }).limit(30); 
-                const b = a ? a.reduce((acc, curr) => curr.tipus === 'be' ? acc + curr.osszeg : acc - curr.osszeg, 0) : 0; return res.json({ balance: b, logs: l || [] }); 
+                const { data: b } = await supabase.rpc('get_kassza_balance');
+                const { data: l } = await supabase.from('kassza_log').select('*').order('datum', { ascending: false }).limit(30); 
+                return res.json({ balance: b || 0, logs: l || [] }); 
             }
             if (method === 'POST') { await supabase.from('kassza_log').insert([{ tipus: req.body.tipus, osszeg: parseInt(req.body.osszeg), operator: req.body.operator, bizonyitek: req.body.bizonyitek }]); return res.json({ success: true }); }
         }
